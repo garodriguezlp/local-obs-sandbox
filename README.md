@@ -21,14 +21,8 @@ Boot logs in JSON Lines format using:
 
 ### Simple Way (Recommended)
 
-**Linux/Mac:**
 ```bash
 ./up.sh
-```
-
-**Windows:**
-```bash
-up.bat
 ```
 
 ### Manual Way
@@ -41,7 +35,7 @@ mkdir logs
 docker-compose up -d
 
 # Generate test logs
-python generate-logs.py batch 50
+python scripts/generate-logs.py batch 50
 
 # Check status
 docker-compose ps
@@ -51,10 +45,10 @@ docker-compose ps
 
 ```bash
 # Generate 100 sample logs
-python generate-logs.py batch 100
+python scripts/generate-logs.py batch 100
 
 # Or generate continuously
-python generate-logs.py continuous
+python scripts/generate-logs.py continuous
 ```
 
 ### 3. View Logs in Grafana
@@ -69,23 +63,29 @@ python generate-logs.py continuous
 ```
 .
 ├── README.md                    # This file
-├── GUIDE.md                     # Comprehensive documentation
-├── VERIFICATION.md              # Testing and verification guide
 ├── docker-compose.yml           # Complete stack configuration
-├── loki-config.yaml             # Loki configuration
-├── promtail-config.yaml         # Promtail configuration
-├── grafana-datasource.yaml      # Grafana data source provisioning
-├── generate-logs.py             # Spring Boot log generator
-├── up.sh / up.bat               # Start stack script
-├── down.sh / down.bat           # Stop stack script
-├── reset.sh / reset.bat         # Reset stack script
+├── .gitignore                   # Git ignore patterns
+├── setup.sh                     # Initial setup script
+├── up.sh                        # Start stack script
+├── down.sh                      # Stop stack script
+├── reset.sh                     # Reset stack script
+├── config/                      # Configuration files
+│   ├── loki-config.yaml         # Loki configuration
+│   ├── promtail-config.yaml     # Promtail configuration
+│   └── grafana-datasource.yaml  # Grafana data source provisioning
+├── scripts/                     # Utility scripts
+│   └── generate-logs.py         # Spring Boot log generator
+├── docs/                        # Documentation
+│   ├── GUIDE.md                 # Comprehensive documentation
+│   ├── VERIFICATION.md          # Testing and verification guide
+│   └── spec.md                  # Project specification
 └── logs/                        # Log directory (created automatically)
     └── application.log          # Spring Boot logs
 ```
 
 ## 📚 Documentation
 
-### [GUIDE.md](GUIDE.md)
+### [GUIDE.md](docs/GUIDE.md)
 
 Comprehensive guide covering:
 
@@ -95,7 +95,7 @@ Comprehensive guide covering:
 - LogQL query examples
 - Best practices
 
-### [VERIFICATION.md](VERIFICATION.md)
+### [VERIFICATION.md](docs/VERIFICATION.md)
 
 Testing and troubleshooting guide with:
 
@@ -132,19 +132,19 @@ Testing and troubleshooting guide with:
 **Batch mode** (generate fixed number):
 
 ```bash
-python generate-logs.py batch 500
+python scripts/generate-logs.py batch 500
 ```
 
 **Continuous mode** (generate continuously):
 
 ```bash
-python generate-logs.py continuous
+python scripts/generate-logs.py continuous
 ```
 
 **Burst mode** (generate in bursts):
 
 ```bash
-python generate-logs.py burst 10 100  # 10 bursts of 100 logs
+python scripts/generate-logs.py burst 10 100  # 10 bursts of 100 logs
 ```
 
 ### Query Logs
@@ -214,7 +214,7 @@ rate({job="spring-boot"}[1m])
    docker-compose logs loki
    ```
 
-See [VERIFICATION.md](VERIFICATION.md) for detailed troubleshooting steps.
+See [VERIFICATION.md](docs/VERIFICATION.md) for detailed troubleshooting steps.
 
 ## 📊 Sample Dashboards
 
@@ -232,20 +232,17 @@ After verification, you can create dashboards in Grafana for:
 
 **Start the stack:**
 ```bash
-./up.sh        # Linux/Mac
-up.bat         # Windows
+./up.sh
 ```
 
 **Stop the stack:**
 ```bash
-./down.sh      # Linux/Mac
-down.bat       # Windows
+./down.sh
 ```
 
 **Complete reset (removes all data and logs):**
 ```bash
-./reset.sh     # Linux/Mac
-reset.bat      # Windows
+./reset.sh
 ```
 
 ### Manual Commands
@@ -280,20 +277,21 @@ rm -rf logs/
 
 ### Configuration Files
 
-- **[`loki-config.yaml`](loki-config.yaml)** - Optimized Loki configuration for local development
-- **[`promtail-config.yaml`](promtail-config.yaml)** - Promtail with JSON Lines parsing pipeline
-- **[`grafana-datasource.yaml`](grafana-datasource.yaml)** - Auto-provisioned Loki data source
+- **[`config/loki-config.yaml`](config/loki-config.yaml)** - Optimized Loki configuration for local development
+- **[`config/promtail-config.yaml`](config/promtail-config.yaml)** - Promtail with JSON Lines parsing pipeline
+- **[`config/grafana-datasource.yaml`](config/grafana-datasource.yaml)** - Auto-provisioned Loki data source
 - **[`docker-compose.yml`](docker-compose.yml)** - Complete stack with health checks
 
 ### Management Scripts
 
-- **[`up.sh`](up.sh:1) / [`up.bat`](up.bat:1)** - Start the complete stack with verification
-- **[`down.sh`](down.sh:1) / [`down.bat`](down.bat:1)** - Stop all services (preserves data)
-- **[`reset.sh`](reset.sh:1) / [`reset.bat`](reset.bat:1)** - Complete reset and fresh start
+- **[`setup.sh`](setup.sh:1)** - Initial setup and configuration script
+- **[`up.sh`](up.sh:1)** - Start the complete stack with verification
+- **[`down.sh`](down.sh:1)** - Stop all services (preserves data)
+- **[`reset.sh`](reset.sh:1)** - Complete reset and fresh start
 
 ### Utility Scripts
 
-- **[`generate-logs.py`](generate-logs.py:1)** - Flexible Spring Boot log generator with multiple modes
+- **[`scripts/generate-logs.py`](scripts/generate-logs.py:1)** - Flexible Spring Boot log generator with multiple modes
 
 ## 🎓 Learning Objectives
 
