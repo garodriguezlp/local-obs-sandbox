@@ -65,7 +65,6 @@ python scripts/generate-logs.py continuous
 ├── README.md                    # This file
 ├── docker-compose.yml           # Complete stack configuration
 ├── .gitignore                   # Git ignore patterns
-├── setup.sh                     # Initial setup script
 ├── up.sh                        # Start stack script
 ├── down.sh                      # Stop stack script
 ├── reset.sh                     # Reset stack script
@@ -284,7 +283,6 @@ rm -rf logs/
 
 ### Management Scripts
 
-- **[`setup.sh`](setup.sh:1)** - Initial setup and configuration script
 - **[`up.sh`](up.sh:1)** - Start the complete stack with verification
 - **[`down.sh`](down.sh:1)** - Stop all services (preserves data)
 - **[`reset.sh`](reset.sh:1)** - Complete reset and fresh start

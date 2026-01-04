@@ -17,36 +17,41 @@ A comprehensive guide to setting up a local log management solution for Spring B
 
 ### What is this Stack?
 
-This stack provides a complete log aggregation, storage, querying, and visualization solution specifically designed for Spring Boot applications that produce JSON Lines formatted logs.
+This stack provides a complete log aggregation, storage, querying, and visualization solution specifically designed for
+Spring Boot applications that produce JSON Lines formatted logs.
 
 ### Components
 
 #### 1. **Promtail** - Log Shipper
+
 - **Role**: Log collection agent that reads log files and forwards them to Loki
 - **Why**: Acts as the bridge between your Spring Boot application logs and Loki
-- **How it works**: 
-  - Watches log files for changes
-  - Parses JSON Lines format
-  - Adds labels and metadata
-  - Streams logs to Loki via HTTP
+- **How it works**:
+    - Watches log files for changes
+    - Parses JSON Lines format
+    - Adds labels and metadata
+    - Streams logs to Loki via HTTP
 
 #### 2. **Loki** - Log Aggregation System
+
 - **Role**: Horizontally scalable log aggregation and storage system
-- **Why**: Designed specifically for logs (not full-text indexing like Elasticsearch), making it lightweight and cost-effective
+- **Why**: Designed specifically for logs (not full-text indexing like Elasticsearch), making it lightweight and
+  cost-effective
 - **How it works**:
-  - Stores compressed, unindexed log data
-  - Indexes only metadata (labels)
-  - Provides LogQL query language (similar to PromQL)
-  - Optimized for aggregation and filtering
+    - Stores compressed, unindexed log data
+    - Indexes only metadata (labels)
+    - Provides LogQL query language (similar to PromQL)
+    - Optimized for aggregation and filtering
 
 #### 3. **Grafana** - Visualization and Querying
+
 - **Role**: Web UI for querying, visualizing, and alerting on log data
 - **Why**: Provides a powerful interface to explore logs, create dashboards, and set up alerts
 - **How it works**:
-  - Connects to Loki as a data source
-  - Provides LogQL query builder
-  - Creates dashboards and visualizations
-  - Supports alerting and annotations
+    - Connects to Loki as a data source
+    - Provides LogQL query builder
+    - Creates dashboards and visualizations
+    - Supports alerting and annotations
 
 ### Architecture Flow
 
@@ -77,12 +82,14 @@ Spring Boot App (JSON Lines logs)
 ## Prerequisites
 
 ### Required Software
+
 - Docker (20.10+)
 - Docker Compose (1.29+)
 - HTTPie (optional, for testing): `pip install httpie`
 - curl (alternative to HTTPie)
 
 ### System Requirements
+
 - 4GB RAM minimum
 - 10GB free disk space
 - Ports available: 3000 (Grafana), 3100 (Loki), 9080 (Promtail)
@@ -96,11 +103,13 @@ This section covers how to set up and verify each component independently before
 ### 1. Loki Setup
 
 #### Pull the Image
+
 ```bash
 docker pull grafana/loki:2.9.3
 ```
 
 #### Run Loki Standalone
+
 ```bash
 docker run -d \
   --name loki \
@@ -112,23 +121,28 @@ docker run -d \
 #### Verify Loki
 
 **Check if Loki is ready:**
+
 ```bash
 curl http://localhost:3100/ready
 ```
+
 Expected output: `ready`
 
 **Check Loki metrics:**
+
 ```bash
 curl http://localhost:3100/metrics
 ```
 
 **Using HTTPie:**
+
 ```bash
 http GET http://localhost:3100/ready
 http GET http://localhost:3100/metrics
 ```
 
 **Push a test log entry:**
+
 ```bash
 curl -X POST http://localhost:3100/loki/api/v1/push \
   -H "Content-Type: application/json" \
@@ -148,12 +162,14 @@ curl -X POST http://localhost:3100/loki/api/v1/push \
 ```
 
 **Query the test log:**
+
 ```bash
 curl -G http://localhost:3100/loki/api/v1/query \
   --data-urlencode 'query={job="test"}'
 ```
 
 #### Stop and Remove
+
 ```bash
 docker stop loki
 docker rm loki
@@ -164,6 +180,7 @@ docker rm loki
 ### 2. Promtail Setup
 
 #### Pull the Image
+
 ```bash
 docker pull grafana/promtail:2.9.3
 ```
@@ -171,6 +188,7 @@ docker pull grafana/promtail:2.9.3
 #### Create Test Configuration
 
 Create a file `promtail-test-config.yaml`:
+
 ```yaml
 server:
   http_listen_port: 9080
@@ -193,6 +211,7 @@ scrape_configs:
 ```
 
 #### Run Promtail Standalone
+
 ```bash
 docker run -d \
   --name promtail \
@@ -206,22 +225,26 @@ docker run -d \
 #### Verify Promtail
 
 **Check Promtail metrics:**
+
 ```bash
 curl http://localhost:9080/metrics
 ```
 
 **Check Promtail targets:**
+
 ```bash
 curl http://localhost:9080/targets
 ```
 
 **Using HTTPie:**
+
 ```bash
 http GET http://localhost:9080/metrics
 http GET http://localhost:9080/targets
 ```
 
 #### Stop and Remove
+
 ```bash
 docker stop promtail
 docker rm promtail
@@ -232,11 +255,13 @@ docker rm promtail
 ### 3. Grafana Setup
 
 #### Pull the Image
+
 ```bash
 docker pull grafana/grafana:10.2.3
 ```
 
 #### Run Grafana Standalone
+
 ```bash
 docker run -d \
   --name=grafana \
@@ -249,23 +274,27 @@ docker run -d \
 #### Verify Grafana
 
 **Check health:**
+
 ```bash
 curl http://localhost:3000/api/health
 ```
 
 **Using HTTPie:**
+
 ```bash
 http GET http://localhost:3000/api/health
 ```
 
 **Access Web UI:**
+
 1. Open browser: http://localhost:3000
 2. Login with:
-   - Username: `admin`
-   - Password: `admin`
+    - Username: `admin`
+    - Password: `admin`
 3. You'll be prompted to change the password (can skip in dev)
 
 #### Stop and Remove
+
 ```bash
 docker stop grafana
 docker rm grafana
@@ -367,18 +396,18 @@ scrape_configs:
             trace_id: traceId
             span_id: spanId
             application: application
-      
+
       # Extract timestamp if present
       - timestamp:
           source: timestamp
           format: RFC3339
-      
+
       # Add labels from JSON fields
       - labels:
           level:
           application:
           logger:
-      
+
       # Output the message as the log line
       - output:
           source: message
@@ -390,7 +419,8 @@ See [`docker-compose.yml`](docker-compose.yml:1) for the complete configuration.
 
 ### Step 4: Network Configuration
 
-The Docker Compose file creates a bridge network called `loki-network` that allows all containers to communicate using their service names as hostnames:
+The Docker Compose file creates a bridge network called `loki-network` that allows all containers to communicate using
+their service names as hostnames:
 
 - `loki` is accessible at `http://loki:3100`
 - `grafana` is accessible at `http://grafana:3000`
@@ -401,15 +431,15 @@ The Docker Compose file creates a bridge network called `loki-network` that allo
 Three types of volumes are used:
 
 1. **Configuration volumes** (bind mounts):
-   - `./loki-config.yaml:/etc/loki/local-config.yaml`
-   - `./promtail-config.yaml:/etc/promtail/config.yml`
+    - `./loki-config.yaml:/etc/loki/local-config.yaml`
+    - `./promtail-config.yaml:/etc/promtail/config.yml`
 
 2. **Data volumes** (named volumes for persistence):
-   - `loki-data:/tmp/loki`
-   - `grafana-data:/var/lib/grafana`
+    - `loki-data:/tmp/loki`
+    - `grafana-data:/var/lib/grafana`
 
 3. **Log volumes** (for log ingestion):
-   - `./logs:/var/log/spring-boot`
+    - `./logs:/var/log/spring-boot`
 
 ### Step 6: Launch the Stack
 
@@ -440,8 +470,8 @@ docker-compose down -v
 4. Click "Add data source"
 5. Select "Loki"
 6. Configure:
-   - Name: `Loki`
-   - URL: `http://loki:3100`
+    - Name: `Loki`
+    - URL: `http://loki:3100`
 7. Click "Save & Test"
 
 #### Option 2: Automatic Configuration (Provisioning)
@@ -461,6 +491,7 @@ datasources:
 ```
 
 Add to docker-compose.yml under grafana volumes:
+
 ```yaml
 - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/loki.yaml
 ```
@@ -478,6 +509,7 @@ python generate-logs.py
 ```
 
 Or manually create a test log:
+
 ```bash
 echo '{"timestamp":"'$(date -Iseconds)'","level":"INFO","thread":"main","logger":"com.example.DemoApplication","message":"Application started successfully","application":"demo-app","traceId":"abc123","spanId":"xyz789"}' >> logs/application.log
 ```
@@ -490,31 +522,37 @@ echo '{"timestamp":"'$(date -Iseconds)'","level":"INFO","thread":"main","logger"
 4. Try these queries:
 
 **View all Spring Boot logs:**
+
 ```logql
 {job="spring-boot"}
 ```
 
 **Filter by log level:**
+
 ```logql
 {job="spring-boot", level="ERROR"}
 ```
 
 **Search for specific text:**
+
 ```logql
 {job="spring-boot"} |= "started"
 ```
 
 **JSON filtering:**
+
 ```logql
 {job="spring-boot"} | json | level="ERROR"
 ```
 
 **Rate of logs:**
+
 ```logql
 rate({job="spring-boot"}[5m])
 ```
 
 **Count by level:**
+
 ```logql
 sum by (level) (count_over_time({job="spring-boot"}[5m]))
 ```
@@ -525,25 +563,28 @@ sum by (level) (count_over_time({job="spring-boot"}[5m]))
 2. Click "Add visualization"
 3. Select "Loki" data source
 4. Add panels for:
-   - Log volume over time
-   - Error rate
-   - Log level distribution
-   - Recent error logs
+    - Log volume over time
+    - Error rate
+    - Log level distribution
+    - Recent error logs
 
 ### 4. Verify Each Component
 
 **Check Loki:**
+
 ```bash
 curl http://localhost:3100/ready
 curl -G http://localhost:3100/loki/api/v1/label
 ```
 
 **Check Promtail:**
+
 ```bash
 curl http://localhost:9080/metrics | grep promtail_sent_entries_total
 ```
 
 **Check Grafana:**
+
 ```bash
 curl http://localhost:3000/api/health
 ```
@@ -633,13 +674,14 @@ ports:
 
 ## Version Compatibility Matrix
 
-| Component | Version | Compatible With |
-|-----------|---------|----------------|
-| Loki | 2.9.3 | Promtail 2.9.x, Grafana 9.x-10.x |
-| Promtail | 2.9.3 | Loki 2.9.x |
-| Grafana | 10.2.3 | Loki 2.x |
+| Component | Version | Compatible With                  |
+|-----------|---------|----------------------------------|
+| Loki      | 2.9.3   | Promtail 2.9.x, Grafana 9.x-10.x |
+| Promtail  | 2.9.3   | Loki 2.9.x                       |
+| Grafana   | 10.2.3  | Loki 2.x                         |
 
 **Recommendations:**
+
 - Keep Loki and Promtail on the same minor version (e.g., both 2.9.x)
 - Grafana can be on a different version but test compatibility
 - Avoid mixing major versions (e.g., Loki 2.x with Promtail 3.x)
@@ -729,27 +771,27 @@ avg_over_time({job="spring-boot"} | unwrap duration [5m])
    ```
 
 3. **Use Appropriate Log Levels:**
-   - ERROR: System errors requiring attention
-   - WARN: Potential issues
-   - INFO: Important business events
-   - DEBUG: Detailed diagnostic information
+    - ERROR: System errors requiring attention
+    - WARN: Potential issues
+    - INFO: Important business events
+    - DEBUG: Detailed diagnostic information
 
 ### For Loki Configuration
 
 1. **Use Labels Wisely:**
-   - Keep label cardinality low (< 10,000 unique combinations)
-   - Use labels for dimensions you want to aggregate on
-   - Put high-cardinality data in log lines, not labels
+    - Keep label cardinality low (< 10,000 unique combinations)
+    - Use labels for dimensions you want to aggregate on
+    - Put high-cardinality data in log lines, not labels
 
 2. **Retention:**
-   - Set appropriate retention periods
-   - Monitor disk usage
-   - Consider using object storage for long-term retention
+    - Set appropriate retention periods
+    - Monitor disk usage
+    - Consider using object storage for long-term retention
 
 3. **Performance:**
-   - Tune `ingestion_rate_mb` based on log volume
-   - Use caching for frequently accessed queries
-   - Consider running Loki in microservices mode for scale
+    - Tune `ingestion_rate_mb` based on log volume
+    - Use caching for frequently accessed queries
+    - Consider running Loki in microservices mode for scale
 
 ---
 
