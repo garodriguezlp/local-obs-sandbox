@@ -4,7 +4,8 @@ A complete, production-ready local log management solution for Spring Boot appli
 
 ## 🎯 Overview
 
-This project provides a fully configured Docker Compose stack for collecting, storing, querying, and visualizing Spring Boot logs in JSON Lines format using:
+This project provides a fully configured Docker Compose stack for collecting, storing, querying, and visualizing Spring
+Boot logs in JSON Lines format using:
 
 - **Loki** - Lightweight log aggregation system
 - **Promtail** - Log collection agent
@@ -18,14 +19,29 @@ This project provides a fully configured Docker Compose stack for collecting, st
 - Docker Compose 1.29+
 - Python 3.7+ (for log generator)
 
-### 1. Start the Stack
+### Simple Way (Recommended)
+
+**Linux/Mac:**
+```bash
+./up.sh
+```
+
+**Windows:**
+```bash
+up.bat
+```
+
+### Manual Way
 
 ```bash
-# Clone or download this project
-cd local-obs-sandbox
+# Create logs directory
+mkdir logs
 
 # Start all services
 docker-compose up -d
+
+# Generate test logs
+python generate-logs.py batch 50
 
 # Check status
 docker-compose ps
@@ -60,6 +76,9 @@ python generate-logs.py continuous
 ├── promtail-config.yaml         # Promtail configuration
 ├── grafana-datasource.yaml      # Grafana data source provisioning
 ├── generate-logs.py             # Spring Boot log generator
+├── up.sh / up.bat               # Start stack script
+├── down.sh / down.bat           # Stop stack script
+├── reset.sh / reset.bat         # Reset stack script
 └── logs/                        # Log directory (created automatically)
     └── application.log          # Spring Boot logs
 ```
@@ -67,7 +86,9 @@ python generate-logs.py continuous
 ## 📚 Documentation
 
 ### [GUIDE.md](GUIDE.md)
+
 Comprehensive guide covering:
+
 - Conceptual overview of each component
 - Individual component setup and verification
 - Integration guide with step-by-step instructions
@@ -75,7 +96,9 @@ Comprehensive guide covering:
 - Best practices
 
 ### [VERIFICATION.md](VERIFICATION.md)
+
 Testing and troubleshooting guide with:
+
 - Detailed verification steps
 - Troubleshooting common issues
 - Performance testing
@@ -85,11 +108,11 @@ Testing and troubleshooting guide with:
 
 ### Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Grafana | 3000 | Web UI for visualization |
-| Loki | 3100 | Log aggregation API |
-| Promtail | 9080 | Log shipper metrics |
+| Service  | Port | Description              |
+|----------|------|--------------------------|
+| Grafana  | 3000 | Web UI for visualization |
+| Loki     | 3100 | Log aggregation API      |
+| Promtail | 9080 | Log shipper metrics      |
 
 ### Default Credentials
 
@@ -107,16 +130,19 @@ Testing and troubleshooting guide with:
 ### Generate Logs
 
 **Batch mode** (generate fixed number):
+
 ```bash
 python generate-logs.py batch 500
 ```
 
 **Continuous mode** (generate continuously):
+
 ```bash
 python generate-logs.py continuous
 ```
 
 **Burst mode** (generate in bursts):
+
 ```bash
 python generate-logs.py burst 10 100  # 10 bursts of 100 logs
 ```
@@ -126,16 +152,19 @@ python generate-logs.py burst 10 100  # 10 bursts of 100 logs
 #### Basic Queries
 
 View all Spring Boot logs:
+
 ```logql
 {job="spring-boot"}
 ```
 
 Filter by log level:
+
 ```logql
 {job="spring-boot", level="ERROR"}
 ```
 
 Search in messages:
+
 ```logql
 {job="spring-boot"} |= "exception"
 ```
@@ -143,16 +172,19 @@ Search in messages:
 #### Advanced Queries
 
 Parse JSON and filter:
+
 ```logql
 {job="spring-boot"} | json | level="ERROR" | logger=~".*Controller"
 ```
 
 Count by log level:
+
 ```logql
 sum by (level) (count_over_time({job="spring-boot"}[5m]))
 ```
 
 Log rate per second:
+
 ```logql
 rate({job="spring-boot"}[1m])
 ```
@@ -196,27 +228,49 @@ After verification, you can create dashboards in Grafana for:
 
 ## 🔄 Managing the Stack
 
-### Start services
+### Quick Scripts
+
+**Start the stack:**
+```bash
+./up.sh        # Linux/Mac
+up.bat         # Windows
+```
+
+**Stop the stack:**
+```bash
+./down.sh      # Linux/Mac
+down.bat       # Windows
+```
+
+**Complete reset (removes all data and logs):**
+```bash
+./reset.sh     # Linux/Mac
+reset.bat      # Windows
+```
+
+### Manual Commands
+
+**Start services:**
 ```bash
 docker-compose up -d
 ```
 
-### View logs
+**View logs:**
 ```bash
 docker-compose logs -f
 ```
 
-### Stop services
+**Stop services:**
 ```bash
 docker-compose down
 ```
 
-### Restart a specific service
+**Restart a specific service:**
 ```bash
 docker-compose restart promtail
 ```
 
-### Clean up everything (including data)
+**Clean up everything (including data):**
 ```bash
 docker-compose down -v
 rm -rf logs/
@@ -231,9 +285,15 @@ rm -rf logs/
 - **[`grafana-datasource.yaml`](grafana-datasource.yaml)** - Auto-provisioned Loki data source
 - **[`docker-compose.yml`](docker-compose.yml)** - Complete stack with health checks
 
-### Scripts
+### Management Scripts
 
-- **[`generate-logs.py`](generate-logs.py)** - Flexible Spring Boot log generator with multiple modes
+- **[`up.sh`](up.sh:1) / [`up.bat`](up.bat:1)** - Start the complete stack with verification
+- **[`down.sh`](down.sh:1) / [`down.bat`](down.bat:1)** - Stop all services (preserves data)
+- **[`reset.sh`](reset.sh:1) / [`reset.bat`](reset.bat:1)** - Complete reset and fresh start
+
+### Utility Scripts
+
+- **[`generate-logs.py`](generate-logs.py:1)** - Flexible Spring Boot log generator with multiple modes
 
 ## 🎓 Learning Objectives
 
@@ -251,6 +311,7 @@ This project helps you learn:
 ⚠️ **This setup is for local development only!**
 
 For production use:
+
 - Enable authentication in Loki
 - Use TLS/HTTPS for all services
 - Set strong passwords
@@ -267,7 +328,7 @@ For production use:
 ✅ Trace and span ID support  
 ✅ Sample log generator with realistic data  
 ✅ Comprehensive documentation and examples  
-✅ Troubleshooting guides and health checks  
+✅ Troubleshooting guides and health checks
 
 ## 🔧 Customization
 
@@ -303,6 +364,7 @@ For production use:
 ## 🤝 Contributing
 
 This is a learning project. Feel free to:
+
 - Extend the log generator with more patterns
 - Add sample Grafana dashboards
 - Improve the documentation
@@ -319,11 +381,13 @@ This project is provided as-is for educational purposes.
 ### Service Health
 
 Check all services are healthy:
+
 ```bash
 docker-compose ps
 ```
 
 Expected output:
+
 ```
 NAME       STATUS
 grafana    Up (healthy)
