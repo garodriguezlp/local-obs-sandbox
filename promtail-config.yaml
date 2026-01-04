@@ -1,0 +1,69 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    timeout: 30s
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+
+scrape_configs:
+  # Spring Boot JSON Lines logs
+  - job_name: spring-boot-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: spring-boot
+          app: demo-app
+          environment: local
+          __path__: /var/log/spring-boot/*.log
+
+    # JSON Lines pipeline for Spring Boot logs
+    pipeline_stages:
+      # Parse JSON
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            thread: thread
+            logger: logger
+            message: message
+            trace_id: traceId
+            span_id: spanId
+            application: application
+            exception_class: exception.class
+            exception_message: exception.message
+            stack_trace: exception.stackTrace
+      
+      # Extract timestamp from JSON field
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+      
+      # Add labels from JSON fields (keep cardinality low!)
+      - labels:
+          level:
+          application:
+      
+      # Add trace and span IDs as labels if present
+      - labels:
+          trace_id:
+          span_id:
+      
+      # Template to format the output message
+      - template:
+          source: output_message
+          template: |
+            {{ if .logger }}[{{ .logger }}] {{ end }}{{ .message }}{{ if .exception_message }} - {{ .exception_class }}: {{ .exception_message }}{{ end }}
+      
+      # Output the formatted message
+      - output:
+          source: output_message
