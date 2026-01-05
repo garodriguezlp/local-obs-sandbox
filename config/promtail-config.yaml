@@ -1,69 +1,225 @@
+# ===========================================
+# PROMTAIL CONFIGURATION (FORMATTED OUTPUT)
+# ===========================================
+# Promtail is the log collection agent that:
+# 1. Reads log files from disk
+# 2. Processes them through a pipeline (parse JSON, extract fields, format output)
+# 3. Sends processed logs to Loki
+#
+# THIS VERSION: Parses JSON and formats logs into human-readable messages
+# TRADE-OFF: Original JSON structure is lost, some fields may not be visible
+# ALTERNATIVE: See promtail-config-raw-json.yaml to preserve original JSON
+
+# === SERVER CONFIGURATION ===
 server:
+  # HTTP port for Promtail's metrics and status endpoints
+  # Useful for monitoring Promtail's health and troubleshooting
+  # Access metrics at: http://localhost:9080/metrics
   http_listen_port: 9080
+  
+  # Disable gRPC (not needed for our setup)
   grpc_listen_port: 0
+  
+  # Logging level for Promtail's own operational logs
   log_level: info
 
+# === POSITIONS TRACKING ===
+# CRITICAL: Tracks which log lines have been read to prevent duplicates
 positions:
+  # File where Promtail stores file positions (line numbers)
+  # Format: YAML with filename -> byte offset mapping
+  # Example: /var/log/spring-boot/app.log: 12345
+  # On restart, Promtail resumes from these positions instead of re-reading everything
+  # This file is persisted in the promtail-positions Docker volume
   filename: /tmp/positions.yaml
 
+# === LOKI CLIENT CONFIGURATION ===
+# Where and how to send logs
 clients:
-  - url: http://loki:3100/loki/api/v1/push
+  - # Loki's push API endpoint
+    # Using Docker service name "loki" which resolves to Loki container
+    url: http://loki:3100/loki/api/v1/push
+    
+    # Network timeout for sending logs
+    # 30s is generous for local dev; production might use 10s
     timeout: 30s
+    
+    # Retry configuration for failed sends
     backoff_config:
+      # Initial retry delay
       min_period: 500ms
+      
+      # Maximum retry delay (exponential backoff caps here)
       max_period: 5m
+      
+      # Give up after this many retries
+      # 10 retries with exponential backoff = ~17 minutes total
       max_retries: 10
 
+# === SCRAPE CONFIGURATIONS ===
+# Define which files to watch and how to process them
 scrape_configs:
-  # Spring Boot JSON Lines logs
-  - job_name: spring-boot-logs
+  # === SPRING BOOT JSON LOGS ===
+  - # Unique identifier for this scrape configuration
+    job_name: spring-boot-logs
+    
+    # Static configuration (not dynamically discovered)
     static_configs:
-      - targets:
+      - # Target (unused in file scraping, but required)
+        targets:
           - localhost
+        
+        # === LABELS ===
+        # Labels are indexed by Loki for fast filtering
+        # CRITICAL: Keep label cardinality low!
+        # Each unique combination of labels creates a separate "stream"
+        # Too many streams = performance problems
         labels:
+          # Job label (required by convention)
+          # Used in queries: {job="spring-boot"}
           job: spring-boot
+          
+          # Application name (static label)
+          # Use for multi-app setups: {app="demo-app"}
           app: demo-app
+          
+          # Environment label (useful for dev/staging/prod)
+          # Use in queries: {environment="local"}
           environment: local
+          
+          # File path pattern to watch
+          # Glob patterns supported: *.log, app-*.log, etc.
+          # Promtail watches for new files matching this pattern
+          # This is mapped from ./logs in docker-compose.yml
           __path__: /var/log/spring-boot/*.log
 
-    # JSON Lines pipeline for Spring Boot logs
+    # === PIPELINE STAGES ===
+    # Sequential processing steps applied to each log line
+    # Think of it as a data transformation pipeline
     pipeline_stages:
-      # Parse JSON
+      # === STAGE 1: JSON PARSING ===
+      # Extract fields from JSON log lines into variables
       - json:
+          # Define which JSON fields to extract
+          # Format: variable_name: json.path.to.field
           expressions:
+            # Timestamp of when the log was created
             timestamp: timestamp
+            
+            # Log level (INFO, WARN, ERROR, DEBUG)
             level: level
+            
+            # Thread name (e.g., "http-nio-8080-exec-1")
+            # IMPORTANT: This field WON'T appear in the final output
+            # because it's not included in the template below
             thread: thread
+            
+            # Logger name (e.g., "com.example.UserController")
             logger: logger
+            
+            # The actual log message
             message: message
+            
+            # Distributed tracing IDs (if present)
             trace_id: traceId
             span_id: spanId
+            
+            # Application name from JSON (for dynamic labeling)
             application: application
+            
+            # Exception details (if log contains an error)
+            # Using dot notation to access nested JSON fields
             exception_class: exception.class
             exception_message: exception.message
             stack_trace: exception.stackTrace
       
-      # Extract timestamp from JSON field
+      # === STAGE 2: TIMESTAMP EXTRACTION ===
+      # Set the log timestamp based on the extracted "timestamp" field
+      # Without this, Loki would use the ingestion time instead
       - timestamp:
+          # Source variable (extracted in previous json stage)
           source: timestamp
+          
+          # Timestamp format
+          # RFC3339 = "2023-01-15T10:30:45Z"
+          # Other options: Unix, UnixMs, RFC3339Nano, custom layouts
           format: RFC3339
       
-      # Add labels from JSON fields (keep cardinality low!)
+      # === STAGE 3: ADD LABELS (Part 1) ===
+      # Convert extracted JSON fields into Loki labels
+      # Labels enable fast filtering: {level="ERROR"}
+      # WARNING: Only add labels with low cardinality!
+      # Bad candidates: request IDs, user IDs, timestamps
+      # Good candidates: level, environment, application
       - labels:
+          # Log level as a label
+          # Enables queries like: {job="spring-boot", level="ERROR"}
+          # Cardinality: ~5 values (DEBUG, INFO, WARN, ERROR, FATAL)
           level:
+          
+          # Application name as a label (from JSON, not static)
+          # Useful if logs contain different app names
+          # Cardinality: depends on your setup
           application:
       
-      # Add trace and span IDs as labels if present
+      # === STAGE 4: ADD LABELS (Part 2) ===
+      # Add tracing labels if present
+      # Separate stage because these might be null/empty
       - labels:
+          # Trace ID for distributed tracing correlation
+          # WARNING: High cardinality! Each request = new trace ID
+          # Only use if you have a small volume of logs
+          # In production, don't make this a label - parse it in queries instead
           trace_id:
+          
+          # Span ID for distributed tracing
+          # Same cardinality warning as trace_id
           span_id:
       
-      # Template to format the output message
+      # === STAGE 5: TEMPLATE FORMATTING ===
+      # Format the log into a human-readable message
+      # THIS IS WHERE THE ORIGINAL JSON IS REPLACED!
       - template:
+          # Store formatted output in this variable
           source: output_message
+          
+          # Go template syntax for formatting
+          # Available variables: all fields extracted in json stage
           template: |
             {{ if .logger }}[{{ .logger }}] {{ end }}{{ .message }}{{ if .exception_message }} - {{ .exception_class }}: {{ .exception_message }}{{ end }}
+          # Template breakdown:
+          # - {{ if .logger }}[{{ .logger }}] {{ end }} = Add "[LoggerName] " if logger exists
+          # - {{ .message }} = Always include the message
+          # - {{ if .exception_message }} = If exception exists...
+          #   - {{ .exception_class }}: {{ .exception_message }} = Add exception details
+          #
+          # Example outputs:
+          # "[UserController] User logged in successfully"
+          # "[OrderService] Failed to process order - NullPointerException: Order ID is null"
+          #
+          # NOTICE: "thread" is NOT in the template, so it won't appear in Grafana!
+          # To see thread, add it to the template: {{ if .thread }}[{{ .thread }}] {{ end }}
       
-      # Output the formatted message
+      # === STAGE 6: OUTPUT ===
+      # Replace the original log line with the formatted message
+      # This is the final stage - whatever is in output_message becomes the log line in Loki
+      # CONSEQUENCE: Original JSON is discarded!
+      # If you want to keep the original JSON, remove this stage and the template stage
       - output:
           source: output_message
+
+# === SUMMARY OF THIS CONFIGURATION ===
+# ✅ Pros:
+#   - Clean, formatted log messages in Grafana
+#   - Fields already extracted for fast filtering via labels
+#   - No need to parse JSON in queries
+#
+# ❌ Cons:
+#   - Original JSON structure is lost
+#   - Fields not in template (like "thread") are not visible
+#   - Can't see the complete log structure
+#
+# 💡 If you want to see original JSON:
+#   - Use promtail-config-raw-json.yaml instead
+#   - Or remove the template and output stages from this config
+#   - See docs/JSON-LOGS.md for detailed explanation

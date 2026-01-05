@@ -1,18 +1,63 @@
+# ===========================================
+# GRAFANA DATASOURCE PROVISIONING
+# ===========================================
+# This file automatically configures Loki as a data source in Grafana on startup.
+# Without this, you'd need to manually add Loki through Grafana's UI every time.
+#
+# Grafana reads files in /etc/grafana/provisioning/datasources/ on startup
+# (mounted via docker-compose.yml volume)
+
+# Provisioning API version (currently only version 1 exists)
 apiVersion: 1
 
+# List of data sources to configure
 datasources:
+  # === LOKI DATA SOURCE ===
   - name: Loki
+    # Data source type - tells Grafana this is a Loki instance
+    # Grafana has built-in support for Loki and knows how to query it
     type: loki
+    
+    # Access mode: how Grafana connects to the data source
+    # - "proxy": Grafana server connects to Loki on behalf of the browser
+    #   This is preferred because Loki doesn't need to be exposed to the internet
+    # - "direct": Browser connects directly to Loki (requires exposing Loki)
     access: proxy
+    
+    # URL where Loki is accessible
+    # Using Docker service name "loki" which resolves to the Loki container's IP
+    # Port 3100 is Loki's HTTP API endpoint
+    # Grafana will send LogQL queries to: http://loki:3100/loki/api/v1/query_range
     url: http://loki:3100
+    
+    # Make this the default data source in Grafana
+    # When you open Explore, Loki will be pre-selected
+    # Set to false if you have multiple data sources
     isDefault: true
+    
+    # Version of the data source config (not Loki version)
     version: 1
+    
+    # Allow editing this data source through Grafana UI
+    # Set to false to prevent accidental changes in production
     editable: true
+    
+    # Additional JSON configuration options specific to Loki
     jsonData:
+      # Maximum number of log lines to return in a single query
+      # Prevents overwhelming the browser with millions of lines
+      # You can override this per-query in Grafana
+      # Higher values = more data but slower queries
       maxLines: 1000
+      
+      # Derived fields: extract data from logs and create clickable links
+      # Useful for integrating with tracing systems like Tempo, Jaeger
       derivedFields:
-        # Extract trace ID as a clickable link (if you have a tracing system)
-        - datasourceUid: tempo
-          matcherRegex: "traceId=(\\w+)"
-          name: TraceID
-          url: "$${__value.raw}"
+        # Example: Extract trace IDs and link to Tempo (distributed tracing)
+        # If your logs contain "traceId=abc123", this creates a clickable link
+        - datasourceUid: tempo                # Target data source (you'd need to add Tempo)
+          matcherRegex: "traceId=(\\w+)"      # Regex to find trace ID in log message
+          name: TraceID                       # Label for the link in Grafana UI
+          url: "$${__value.raw}"              # Link URL (${__value.raw} = extracted trace ID)
+          # Note: This requires a Tempo data source configured with uid "tempo"
+          # If you don't have Tempo, this won't break anything - just won't show links

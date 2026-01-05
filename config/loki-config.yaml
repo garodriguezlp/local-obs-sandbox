@@ -1,68 +1,181 @@
+# ===========================================
+# LOKI CONFIGURATION
+# ===========================================
+# Loki is a log aggregation system designed to store and query logs efficiently.
+# Unlike traditional logging systems, Loki only indexes metadata (labels), not log content,
+# making it fast and economical.
+#
+# This configuration is optimized for local development.
+# For production, you'd enable authentication, use remote storage (S3, GCS), and configure clustering.
+
+# === AUTHENTICATION ===
+# Disable multi-tenant authentication (simpler for local dev)
+# In production, set to true and use tenant IDs for isolation
 auth_enabled: false
 
+# === SERVER CONFIGURATION ===
 server:
+  # HTTP port for API endpoints:
+  # - /loki/api/v1/push (receive logs from Promtail)
+  # - /loki/api/v1/query_range (query logs from Grafana)
+  # - /ready (health check)
   http_listen_port: 3100
+  
+  # gRPC port for high-performance communication between Loki components
+  # Used in distributed mode (we're running single-node, but it's still required)
   grpc_listen_port: 9096
+  
+  # Logging level for Loki's own operational logs
+  # Options: debug, info, warn, error
   log_level: info
 
+# === COMMON CONFIGURATION ===
+# Settings shared across multiple Loki components
 common:
+  # Instance address for ring membership (unused in single-node, but required)
   instance_addr: 127.0.0.1
+  
+  # Base directory for all Loki data (chunks, index, rules)
+  # This is inside the container; docker-compose maps /tmp/loki to a volume
   path_prefix: /tmp/loki
+  
+  # Storage configuration
   storage:
+    # Using filesystem storage (simple, good for local dev)
+    # Production would use S3, GCS, or Azure Blob Storage
     filesystem:
+      # Directory where compressed log data ("chunks") are stored
+      # Logs are compressed using gzip and organized by time ranges
       chunks_directory: /tmp/loki/chunks
+      
+      # Directory for alert/recording rules (not used in this setup)
       rules_directory: /tmp/loki/rules
+  
+  # Replication factor: how many copies of each log chunk to store
+  # 1 = no replication (fine for local dev, bad for production)
+  # Production uses 3 for fault tolerance
   replication_factor: 1
+  
+  # Ring configuration for distributed hash ring (unused in single-node)
   ring:
     kvstore:
+      # Using in-memory store (no external dependencies like Consul/etcd)
       store: inmemory
 
+# === QUERY RANGE CONFIGURATION ===
+# Optimize query performance with caching
 query_range:
+  # Cache query results to speed up repeated queries
   results_cache:
     cache:
       embedded_cache:
+        # Enable in-memory caching
         enabled: true
+        # Maximum memory to use for cache
+        # 100MB is reasonable for local dev
         max_size_mb: 100
 
+# === SCHEMA CONFIGURATION ===
+# Defines how Loki stores and indexes logs
+# Critical for query performance and storage efficiency
 schema_config:
   configs:
-    - from: 2020-10-24
+    # Schema definition (can have multiple for migrations)
+    - from: 2020-10-24              # Start date (any date before "now" works)
+      
+      # Index storage: boltdb-shipper (embedded database, no external deps)
+      # Alternatives: tsdb (newer, better performance)
       store: boltdb-shipper
+      
+      # Object storage backend for chunks
+      # filesystem = local disk (good for dev)
+      # s3, gcs, azure = cloud storage (production)
       object_store: filesystem
+      
+      # Schema version (v11 is stable, v12/v13 are newer)
+      # v11 is widely used and well-tested
       schema: v11
+      
+      # Index configuration
       index:
+        # Prefix for index files
         prefix: index_
+        
+        # Index rotation period (how often to create new index tables)
+        # 24h = one index per day
+        # Shorter periods = more indexes but smaller files
         period: 24h
 
+# === RULER CONFIGURATION ===
+# For alerting rules (not actively used in this setup)
 ruler:
+  # Alertmanager URL for sending alerts
+  # localhost:9093 is standard Alertmanager port (not running in our stack)
   alertmanager_url: http://localhost:9093
 
-# Limits configuration
+# === LIMITS CONFIGURATION ===
+# Protect Loki from being overwhelmed by too much data
 limits_config:
+  # Reject logs older than this threshold
+  # Prevents backdated logs from creating gaps in retention
   reject_old_samples: true
-  reject_old_samples_max_age: 168h
-  ingestion_rate_mb: 10
-  ingestion_burst_size_mb: 20
+  reject_old_samples_max_age: 168h    # 7 days
+  
+  # Rate limiting for log ingestion
+  # Per-tenant limits (we have no tenants, so this is global)
+  ingestion_rate_mb: 10               # 10 MB/s sustained rate
+  ingestion_burst_size_mb: 20         # 20 MB burst allowed
+  
+  # Maximum log entries to return in a single query
+  # Prevents queries from returning millions of lines and crashing browsers
   max_entries_limit_per_query: 5000
+  
+  # Maximum number of active streams (label combinations)
+  # 0 = unlimited for per-user (not used)
+  # 5000 = max globally
+  # Each unique set of labels creates a stream
+  # Too many streams = poor performance ("high cardinality" problem)
   max_streams_per_user: 0
   max_global_streams_per_user: 5000
 
-# Chunk store configuration
+# === CHUNK STORE CONFIGURATION ===
 chunk_store_config:
+  # How far back Loki will look for chunks during queries
+  # 0s = unlimited lookback (will search all data)
+  # Set a limit (e.g., 720h = 30 days) to improve query performance
   max_look_back_period: 0s
 
-# Table manager for retention
+# === TABLE MANAGER CONFIGURATION ===
+# Manages retention and cleanup of old data
 table_manager:
+  # Retention deletion disabled (keeps all logs forever)
+  # Enable in production to automatically delete old logs
   retention_deletes_enabled: false
+  
+  # Retention period (not used since deletion is disabled)
+  # Set to 30d, 90d, etc. when enabling retention
   retention_period: 0s
 
-# Analytics
+# === ANALYTICS ===
+# Grafana Labs collects anonymous usage statistics
+# Disabled for privacy in local dev
 analytics:
   reporting_enabled: false
 
-# Compactor for index cleanup
+# === COMPACTOR CONFIGURATION ===
+# Background process that optimizes and deduplicates index files
 compactor:
+  # Working directory for compaction operations
   working_directory: /tmp/loki/compactor
+  
+  # Where compacted data is stored (same as main storage)
   shared_store: filesystem
+  
+  # How often to run compaction
+  # 10m = every 10 minutes (frequent for local dev)
+  # Production might use 30m or 1h
   compaction_interval: 10m
+  
+  # Retention enforcement during compaction (disabled)
+  # When enabled, compactor deletes old data during compaction
   retention_enabled: false
