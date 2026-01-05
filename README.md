@@ -2,6 +2,16 @@
 
 A complete, production-ready local log management solution for Spring Boot applications using Loki and Grafana.
 
+## ⚠️ Work Environment Version
+
+This project is configured for specific versions available in enterprise registries:
+
+- **Loki**: 2.9.2
+- **Promtail**: 3.5.0 (newer than Loki - see compatibility notes)
+- **Grafana**: 10.2.2
+
+**Important**: If you encounter issues with Promtail 3.5.0, refer to [`docs/PROMTAIL-COMPATIBILITY.md`](docs/PROMTAIL-COMPATIBILITY.md) for troubleshooting and fallback options.
+
 ## 🎯 Overview
 
 This project provides a fully configured Docker Compose stack for collecting, storing, querying, and visualizing Spring
@@ -77,6 +87,7 @@ python scripts/generate-logs.py continuous
 ├── docs/                        # Documentation
 │   ├── GUIDE.md                 # Comprehensive documentation
 │   ├── VERIFICATION.md          # Testing and verification guide
+│   ├── PROMTAIL-COMPATIBILITY.md # Version compatibility troubleshooting
 │   └── spec.md                  # Project specification
 └── logs/                        # Log directory (created automatically)
     └── application.log          # Spring Boot logs
@@ -105,13 +116,24 @@ Testing and troubleshooting guide with:
 
 ### [JSON-LOGS.md](docs/JSON-LOGS.md)
 
-**⭐ New & Important!** Understanding JSON log processing:
+Understanding JSON log processing:
 
 - Why you don't see raw JSON in Grafana (and how Promtail transforms it)
 - How to preserve original JSON while still getting parsing benefits
 - Two configuration approaches (raw vs. formatted)
 - How to query and work with JSON fields in LogQL
 - Switching between configurations
+
+### [PROMTAIL-COMPATIBILITY.md](docs/PROMTAIL-COMPATIBILITY.md)
+
+**⚠️ Important for Work Environment:** Version compatibility guide:
+
+- Compatibility notes for Promtail 3.5.0 with Loki 2.9.2
+- Health check procedures and diagnostics
+- Common issues and solutions
+- How to verify your Promtail version is genuine Grafana
+- Emergency fallback options if versions are incompatible
+- Quick reference commands for troubleshooting
 
 ## 🔧 Configuration
 
@@ -217,13 +239,31 @@ rate({job="spring-boot"}[1m])
    curl http://localhost:9080/metrics | grep promtail_sent_entries_total
    ```
 
-4. View container logs:
+4. Check Promtail health:
+   ```bash
+   curl http://localhost:9080/ready
+   ```
+
+5. View container logs:
    ```bash
    docker-compose logs promtail
    docker-compose logs loki
    ```
 
-See [VERIFICATION.md](docs/VERIFICATION.md) for detailed troubleshooting steps.
+### Promtail version issues?
+
+If Promtail 3.5.0 is not starting or showing compatibility errors:
+
+1. Check Promtail logs for errors:
+   ```bash
+   docker logs promtail
+   ```
+
+2. See detailed troubleshooting in [PROMTAIL-COMPATIBILITY.md](docs/PROMTAIL-COMPATIBILITY.md)
+
+3. Test with minimal config if issues persist
+
+See [VERIFICATION.md](docs/VERIFICATION.md) for complete troubleshooting steps.
 
 ## 📊 Sample Dashboards
 
@@ -398,8 +438,10 @@ Expected output:
 NAME       STATUS
 grafana    Up (healthy)
 loki       Up (healthy)
-promtail   Up
+promtail   Up (healthy)
 ```
+
+**Note**: Promtail 3.5.0 includes health checks. If it shows "unhealthy", check [`docs/PROMTAIL-COMPATIBILITY.md`](docs/PROMTAIL-COMPATIBILITY.md).
 
 ### Quick Health Check
 

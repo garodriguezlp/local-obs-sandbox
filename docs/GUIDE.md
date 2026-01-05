@@ -1,4 +1,4 @@
-# Spring Boot Log Management with Loki and Grafana
+/# Spring Boot Log Management with Loki and Grafana
 
 A comprehensive guide to setting up a local log management solution for Spring Boot applications using Loki and Grafana.
 
@@ -164,8 +164,11 @@ curl -X POST http://localhost:3100/loki/api/v1/push \
 **Query the test log:**
 
 ```bash
-curl -G http://localhost:3100/loki/api/v1/query \
-  --data-urlencode 'query={job="test"}'
+curl -G "http://localhost:3100/loki/api/v1/query_range" \
+    --data-urlencode "query={job=\"test\"}" \
+    --data-urlencode "start=2026-01-05T16:45:00Z" \
+    --data-urlencode "end=2026-01-05T16:50:00Z" \
+    --data-urlencode "limit=500"
 ```
 
 #### Stop and Remove
