@@ -69,12 +69,12 @@ services:
     volumes:
       # Mount Promtail configuration
       # Defines: which files to read, how to parse them, where to send them
-      # See config/promtail-config.yaml for pipeline stages (JSON parsing, labeling, etc.)
-      - ./config/promtail-config.yaml:/etc/promtail/config.yml
+      # See config/promtail-config-raw-json.yaml for pipeline stages (JSON parsing, labeling, etc.)
+      - ./config/promtail-config-raw-json.yaml:/etc/promtail/config.yml
       
       # Mount log directory from host (read-only ":ro" for safety)
       # Promtail watches ./logs/*.log files on your machine
-      # Maps to /var/log/spring-boot inside container (as configured in promtail-config.yaml)
+      # Maps to /var/log/spring-boot inside container (as configured in promtail-config-raw-json.yaml)
       - ./logs:/var/log/spring-boot:ro
       
       # Named volume for positions file - THIS IS CRITICAL!
