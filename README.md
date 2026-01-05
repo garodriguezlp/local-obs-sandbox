@@ -103,6 +103,16 @@ Testing and troubleshooting guide with:
 - Performance testing
 - Health check scripts
 
+### [JSON-LOGS.md](docs/JSON-LOGS.md)
+
+**⭐ New & Important!** Understanding JSON log processing:
+
+- Why you don't see raw JSON in Grafana (and how Promtail transforms it)
+- How to preserve original JSON while still getting parsing benefits
+- Two configuration approaches (raw vs. formatted)
+- How to query and work with JSON fields in LogQL
+- Switching between configurations
+
 ## 🔧 Configuration
 
 ### Services
