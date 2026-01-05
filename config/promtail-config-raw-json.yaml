@@ -1,59 +1,185 @@
+# ===========================================
+# PROMTAIL CONFIGURATION (RAW JSON PRESERVED)
+# ===========================================
+# This is an ALTERNATIVE configuration to promtail-config.yaml
+# 
+# KEY DIFFERENCE: This configuration preserves the original JSON structure in Loki
+# 
+# WHY USE THIS:
+# - You want to see the complete JSON in Grafana
+# - You want all fields available (including "thread" which is missing in the formatted version)
+# - You prefer to parse JSON on-demand in queries: {job="spring-boot"} | json
+# - You're learning Loki and want to understand how JSON parsing works
+#
+# TO USE THIS CONFIG:
+# 1. In docker-compose.yml, change the volume mount:
+#    - ./config/promtail-config-raw-json.yaml:/etc/promtail/config.yml
+# 2. Restart Promtail: docker-compose restart promtail
+# 3. Generate fresh logs: python scripts/generate-logs.py batch 50
+# 4. Query in Grafana: {job="spring-boot"}
+#
+# See docs/JSON-LOGS.md for detailed comparison and explanation
+
+# === SERVER CONFIGURATION ===
 server:
+  # HTTP port for Promtail's metrics and status endpoints
+  # Access metrics at: http://localhost:9080/metrics
   http_listen_port: 9080
+  
+  # Disable gRPC (not needed)
   grpc_listen_port: 0
+  
+  # Logging level for Promtail's own logs
   log_level: info
 
+# === POSITIONS TRACKING ===
+# Tracks which log lines have been read to prevent duplicates on restart
 positions:
+  # File where positions are stored (persisted in Docker volume)
+  # Format: /var/log/spring-boot/app.log: 12345
   filename: /tmp/positions.yaml
 
+# === LOKI CLIENT CONFIGURATION ===
 clients:
-  - url: http://loki:3100/loki/api/v1/push
+  - # Loki's push endpoint
+    url: http://loki:3100/loki/api/v1/push
+    
+    # Network timeout
     timeout: 30s
+    
+    # Retry policy for failed sends
     backoff_config:
-      min_period: 500ms
-      max_period: 5m
-      max_retries: 10
+      min_period: 500ms      # Start with 500ms delay
+      max_period: 5m         # Cap at 5 minutes
+      max_retries: 10        # Give up after 10 attempts
 
+# === SCRAPE CONFIGURATIONS ===
 scrape_configs:
-  # Spring Boot JSON Lines logs - RAW JSON preserved
+  # === SPRING BOOT JSON LOGS (RAW PRESERVATION MODE) ===
   - job_name: spring-boot-logs
+    
     static_configs:
       - targets:
           - localhost
+        
+        # === LABELS ===
+        # Same static labels as the formatted version
         labels:
           job: spring-boot
           app: demo-app
           environment: local
           __path__: /var/log/spring-boot/*.log
 
-    # Minimal pipeline that preserves original JSON
+    # === MINIMAL PIPELINE (KEY DIFFERENCE!) ===
+    # This pipeline extracts ONLY what we need for labels and timestamp
+    # It does NOT reformat the log message, so the original JSON is preserved
     pipeline_stages:
-      # Parse JSON to extract just what we need for labels/timestamp
+      # === STAGE 1: JSON PARSING (Minimal Extraction) ===
+      # We only extract fields we need for labels or timestamp
+      # All other fields remain in the original JSON line
       - json:
           expressions:
+            # Extract timestamp for proper ordering
             timestamp: timestamp
+            
+            # Extract for labels (indexing)
             level: level
             application: application
+            
+            # Extract trace IDs for labels (optional)
             trace_id: traceId
             span_id: spanId
+            
+            # NOTICE: We're NOT extracting:
+            # - thread, logger, message, exception, etc.
+            # These remain in the original JSON and can be parsed in Grafana
       
-      # Extract timestamp from JSON field
+      # === STAGE 2: TIMESTAMP EXTRACTION ===
+      # Use the log's timestamp instead of ingestion time
       - timestamp:
           source: timestamp
           format: RFC3339
       
-      # Add minimal labels (keep cardinality low!)
+      # === STAGE 3: MINIMAL LABELS ===
+      # Add labels for fast filtering
+      # Keep cardinality low for good performance
       - labels:
+          # Log level: {level="ERROR"}
+          # Cardinality: ~5 values (DEBUG, INFO, WARN, ERROR, FATAL)
           level:
+          
+          # Application name: {application="my-app"}
+          # Cardinality: depends on your setup
           application:
       
-      # Add trace and span IDs as labels if present
+      # === STAGE 4: TRACE LABELS (Optional) ===
+      # WARNING: High cardinality! Only use for low-volume logs
+      # In production, consider removing these and parsing trace IDs in queries instead
       - labels:
           trace_id:
           span_id:
       
-      # NO template or output stage means:
-      # - Original JSON line is preserved in Loki
-      # - You see the complete JSON structure in Grafana
-      # - All fields (including thread, logger, etc.) are available
-      # - You can parse on-demand in Grafana with: | json
+      # === NO TEMPLATE STAGE ===
+      # This is the KEY difference from promtail-config.yaml!
+      # By NOT having a template/output stage, the original log line is preserved
+      
+      # === NO OUTPUT STAGE ===
+      # The log line remains exactly as read from the file
+      # If the file contains: {"timestamp":"2023-01-15T10:30:45Z","level":"INFO",...}
+      # Then Loki stores: {"timestamp":"2023-01-15T10:30:45Z","level":"INFO",...}
+
+# === WHAT YOU GET IN GRAFANA ===
+# With this configuration, when you query {job="spring-boot"} you'll see:
+#
+# {"timestamp":"2023-01-15T10:30:45Z","level":"INFO","thread":"http-nio-8080-exec-1",...}
+# {"timestamp":"2023-01-15T10:31:22Z","level":"ERROR","thread":"scheduler-1",...}
+# 
+# The COMPLETE JSON structure, including all fields!
+
+# === HOW TO WORK WITH RAW JSON IN GRAFANA ===
+# 
+# 1. View raw JSON:
+#    {job="spring-boot"}
+#
+# 2. Parse and extract specific fields:
+#    {job="spring-boot"} | json | line_format "{{.thread}} - {{.logger}}: {{.message}}"
+#
+# 3. Filter by extracted fields:
+#    {job="spring-boot"} | json | thread="http-nio-8080-exec-1"
+#
+# 4. Search within message (still works):
+#    {job="spring-boot"} |= "exception"
+#
+# 5. Pretty-print all fields:
+#    {job="spring-boot"} | json | line_format "{{.}}"
+
+# === COMPARISON: RAW vs FORMATTED ===
+#
+# THIS CONFIG (Raw JSON):
+# ✅ Complete JSON visible
+# ✅ All fields available (thread, logger, exception details, etc.)
+# ✅ Flexibility - parse differently for different queries
+# ✅ Nothing is lost
+# ❌ Less readable at first glance
+# ❌ Need to parse in every query
+#
+# promtail-config.yaml (Formatted):
+# ✅ Clean, human-readable messages
+# ✅ Fields already extracted
+# ✅ Faster queries (no parsing needed)
+# ❌ Original JSON lost
+# ❌ Fields not in template are invisible
+# ❌ Can't change formatting later
+
+# === BEST PRACTICE ===
+# For learning: Use this config (raw JSON)
+# For production: Decide based on your needs
+#   - Need all fields preserved? Use raw
+#   - Want simpler queries? Use formatted
+#   - Or create a hybrid: extract more fields but keep original JSON
+
+# === PERFORMANCE NOTE ===
+# Raw JSON is NOT slower than formatted!
+# - Storage: same size (actually slightly smaller without template overhead)
+# - Query speed: depends on whether you parse in query or not
+# - Indexing: same (labels are extracted either way)
