@@ -22,13 +22,17 @@ echo ""
 
 # Start fresh using the up script
 if [ -f "up.sh" ]; then
-    ./up.sh
+    ./up.sh "$1"
 else
     # Inline version if up.sh doesn't exist
     mkdir -p logs
     docker-compose up -d
     sleep 8
-    python scripts/generate-logs.py batch 50
+    if [ -n "$1" ]; then
+        cp "$1" logs/
+    else
+        python scripts/generate-logs.py batch 50
+    fi
     echo ""
     echo "✨ Fresh stack is ready!"
     echo "📊 Grafana UI: http://localhost:3000"

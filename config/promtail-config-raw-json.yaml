@@ -2,9 +2,9 @@
 # PROMTAIL CONFIGURATION (RAW JSON PRESERVED)
 # ===========================================
 # This is an ALTERNATIVE configuration to promtail-config.yaml
-# 
+#
 # KEY DIFFERENCE: This configuration preserves the original JSON structure in Loki
-# 
+#
 # WHY USE THIS:
 # - You want to see the complete JSON in Grafana
 # - You want all fields available (including "thread" which is missing in the formatted version)
@@ -25,10 +25,10 @@ server:
   # HTTP port for Promtail's metrics and status endpoints
   # Access metrics at: http://localhost:9080/metrics
   http_listen_port: 9080
-  
+
   # Disable gRPC (not needed)
   grpc_listen_port: 0
-  
+
   # Logging level for Promtail's own logs
   log_level: info
 
@@ -43,10 +43,10 @@ positions:
 clients:
   - # Loki's push endpoint
     url: http://loki:3100/loki/api/v1/push
-    
+
     # Network timeout
     timeout: 30s
-    
+
     # Retry policy for failed sends
     backoff_config:
       min_period: 500ms      # Start with 500ms delay
@@ -57,11 +57,11 @@ clients:
 scrape_configs:
   # === SPRING BOOT JSON LOGS (RAW PRESERVATION MODE) ===
   - job_name: spring-boot-logs
-    
+
     static_configs:
       - targets:
           - localhost
-        
+
         # === LABELS ===
         # Same static labels as the formatted version
         labels:
@@ -75,69 +75,44 @@ scrape_configs:
     # It does NOT reformat the log message, so the original JSON is preserved
     pipeline_stages:
       # === STAGE 1: JSON PARSING (Minimal Extraction) ===
-      # We only extract fields we need for labels or timestamp
-      # All other fields remain in the original JSON line
+      # If a line isn't valid JSON, this stage will fail gracefully and skip it
+      # Updated to match actual JSON fields from sample logs
       - json:
           expressions:
-            # Extract timestamp for proper ordering
-            timestamp: timestamp
-            
-            # Extract for labels (indexing)
+            # Extract timestamp (corrected from "timestamp" to "ts")
+            ts: ts
+
+            # Extract for labels
             level: level
             application: application
-            
-            # Extract trace IDs for labels (optional)
-            trace_id: traceId
-            span_id: spanId
-            
-            # NOTICE: We're NOT extracting:
-            # - thread, logger, message, exception, etc.
-            # These remain in the original JSON and can be parsed in Grafana
-      
+
+            # Removed trace_id and span_id as they are not in the sample
+            # Add back if your logs include them
+
       # === STAGE 2: TIMESTAMP EXTRACTION ===
-      # Use the log's timestamp instead of ingestion time
+      # Updated source to "ts"
       - timestamp:
-          source: timestamp
+          source: ts
           format: RFC3339
-      
+
       # === STAGE 3: MINIMAL LABELS ===
-      # Add labels for fast filtering
-      # Keep cardinality low for good performance
       - labels:
-          # Log level: {level="ERROR"}
-          # Cardinality: ~5 values (DEBUG, INFO, WARN, ERROR, FATAL)
           level:
-          
-          # Application name: {application="my-app"}
-          # Cardinality: depends on your setup
           application:
-      
-      # === STAGE 4: TRACE LABELS (Optional) ===
-      # WARNING: High cardinality! Only use for low-volume logs
-      # In production, consider removing these and parsing trace IDs in queries instead
-      - labels:
-          trace_id:
-          span_id:
-      
+
       # === NO TEMPLATE STAGE ===
-      # This is the KEY difference from promtail-config.yaml!
-      # By NOT having a template/output stage, the original log line is preserved
-      
-      # === NO OUTPUT STAGE ===
-      # The log line remains exactly as read from the file
-      # If the file contains: {"timestamp":"2023-01-15T10:30:45Z","level":"INFO",...}
-      # Then Loki stores: {"timestamp":"2023-01-15T10:30:45Z","level":"INFO",...}
+      # Original log line preserved
 
 # === WHAT YOU GET IN GRAFANA ===
 # With this configuration, when you query {job="spring-boot"} you'll see:
 #
-# {"timestamp":"2023-01-15T10:30:45Z","level":"INFO","thread":"http-nio-8080-exec-1",...}
-# {"timestamp":"2023-01-15T10:31:22Z","level":"ERROR","thread":"scheduler-1",...}
-# 
+# {"ts":"2023-01-15T10:30:45Z","level":"INFO","thread":"http-nio-8080-exec-1",...}
+# {"ts":"2023-01-15T10:31:22Z","level":"ERROR","thread":"scheduler-1",...}
+#
 # The COMPLETE JSON structure, including all fields!
 
 # === HOW TO WORK WITH RAW JSON IN GRAFANA ===
-# 
+#
 # 1. View raw JSON:
 #    {job="spring-boot"}
 #

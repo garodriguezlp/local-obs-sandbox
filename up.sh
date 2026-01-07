@@ -16,7 +16,7 @@ docker-compose up -d
 
 # Wait for services
 echo "⏳ Waiting for services to be ready..."
-sleep 8
+sleep 15
 
 # Check Loki
 echo ""
@@ -33,10 +33,15 @@ else
     echo "❌ Grafana is not responding"
 fi
 
-# Generate initial logs
+# Generate or copy initial logs
 echo ""
-echo "📝 Generating sample logs..."
-python scripts/generate-logs.py batch 50
+if [ -n "$1" ]; then
+    echo "📝 Copying custom log file from $1..."
+    cp "$1" logs/
+else
+    echo "📝 Generating sample logs..."
+    python scripts/generate-logs.py batch 50
+fi
 
 # Wait for ingestion
 sleep 2
