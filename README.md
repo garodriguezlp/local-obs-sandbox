@@ -117,6 +117,41 @@ docker-compose logs loki
 
 See [`GUIDE.md`](GUIDE.md) for detailed troubleshooting steps.
 
+## Configuration
+
+### Environment Variables
+
+All configuration variables are prefixed with `LOCALOBS_` to avoid collisions when exported alongside other environment variables:
+
+```bash
+# Component versions
+LOCALOBS_LOKI_IMAGE=grafana/loki
+LOCALOBS_LOKI_TAG=2.9.2
+LOCALOBS_PROMTAIL_IMAGE=grafana/promtail
+LOCALOBS_PROMTAIL_TAG=3.5.0
+LOCALOBS_GRAFANA_IMAGE=grafana/grafana
+LOCALOBS_GRAFANA_TAG=10.2.2
+
+# Log directory
+LOCALOBS_LOG_FOLDER=./logs
+
+# Timestamp parsing (using Go reference time format)
+# Reference: Mon Jan 2 15:04:05 MST 2006
+LOCALOBS_TIMESTAMP_SOURCE=ts
+LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05.999-0700
+```
+
+### Timestamp Format Configuration
+
+Promtail now uses environment variables for timestamp parsing, configured with `-config.expand-env=true`. This allows you to:
+
+- **Customize timestamp parsing** without editing YAML files
+- **Use Go's reference time format** (Jan 2, 2006 15:04:05) for precise timestamp parsing
+- **Control the JSON field** containing timestamps via `LOCALOBS_TIMESTAMP_SOURCE`
+- **Match any timestamp format** by adjusting `LOCALOBS_TIMESTAMP_FORMAT`
+
+**Example:** For timestamp `2026-01-07T22:16:19.999-0500`, the format is `2006-01-02T15:04:05.999-0700`
+
 ## For Production
 
 ⚠️ This setup is for local development. For production:

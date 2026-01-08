@@ -79,8 +79,8 @@ scrape_configs:
       # Updated to match actual JSON fields from sample logs
       - json:
           expressions:
-            # Extract timestamp (corrected from "timestamp" to "ts")
-            ts: ts
+            # Extract timestamp from field specified in LOCALOBS_TIMESTAMP_SOURCE env var
+            ts: ${LOCALOBS_TIMESTAMP_SOURCE}
 
             # Extract for labels
             level: level
@@ -90,10 +90,12 @@ scrape_configs:
             # Add back if your logs include them
 
       # === STAGE 2: TIMESTAMP EXTRACTION ===
-      # Updated source to "ts"
+      # Uses Go reference time format from LOCALOBS_TIMESTAMP_FORMAT env var
+      # Reference time: Mon Jan 2 15:04:05 MST 2006
+      # Format 2006-01-02T15:04:05.999-0700 matches: 2026-01-07T22:16:19.999-0500
       - timestamp:
           source: ts
-          format: RFC3339
+          format: ${LOCALOBS_TIMESTAMP_FORMAT}
 
       # === STAGE 3: MINIMAL LABELS ===
       - labels:

@@ -9,20 +9,20 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-# Use LOG_FOLDER from .env or default to ./logs
-LOG_FOLDER=${LOG_FOLDER:-./logs}
+# Use LOCALOBS_LOG_FOLDER from .env or default to ./logs
+LOCALOBS_LOG_FOLDER=${LOCALOBS_LOG_FOLDER:-./logs}
 
 # Stop containers
 echo "🛑 Stopping Docker containers..."
 docker-compose down -v
 
 # Remove logs with confirmation
-if [ -d "$LOG_FOLDER" ]; then
-    read -p "🗑️  Delete logs directory at $LOG_FOLDER? [N/y] " -n 1 -r
+if [ -d "$LOCALOBS_LOG_FOLDER" ]; then
+    read -p "🗑️  Delete logs directory at $LOCALOBS_LOG_FOLDER? [N/y] " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "   Removing logs directory..."
-        rm -rf "$LOG_FOLDER"
+        rm -rf "$LOCALOBS_LOG_FOLDER"
     else
         echo "   Keeping logs directory"
     fi

@@ -9,13 +9,13 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-# Use LOG_FOLDER from .env or default to ./logs
-LOG_FOLDER=${LOG_FOLDER:-./logs}
+# Use LOCALOBS_LOG_FOLDER from .env or default to ./logs
+LOCALOBS_LOG_FOLDER=${LOCALOBS_LOG_FOLDER:-./logs}
 
 # Create logs directory if it doesn't exist
-if [ ! -d "$LOG_FOLDER" ]; then
-    echo "📁 Creating logs directory at $LOG_FOLDER..."
-    mkdir -p "$LOG_FOLDER"
+if [ ! -d "$LOCALOBS_LOG_FOLDER" ]; then
+    echo "📁 Creating logs directory at $LOCALOBS_LOG_FOLDER..."
+    mkdir -p "$LOCALOBS_LOG_FOLDER"
 fi
 
 # Start services
@@ -62,11 +62,11 @@ else
     echo "❌ Grafana is not responding"
 fi
 
-# Generate sample logs if GENERATE_LOGS is enabled
-if [ "${GENERATE_LOGS}" = "true" ]; then
+# Generate sample logs if LOCALOBS_GENERATE_LOGS is enabled
+if [ "${LOCALOBS_GENERATE_LOGS}" = "true" ]; then
     echo ""
     echo "📝 Generating sample logs..."
-    jbang scripts/generate-logs.java batch --logs-path "$LOG_FOLDER" 50
+    jbang scripts/generate-logs.java batch --logs-path "$LOCALOBS_LOG_FOLDER" 50
     
     # Wait for ingestion
     sleep 2

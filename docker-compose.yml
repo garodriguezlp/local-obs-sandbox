@@ -7,7 +7,7 @@ services:
   # making it fast and cheap to run.
   loki:
     # Using version 2.9.2
-    image: ${LOKI_IMAGE}:${LOKI_TAG}
+    image: ${LOCALOBS_LOKI_IMAGE}:${LOCALOBS_LOKI_TAG}
     container_name: loki
 
     user: root
@@ -61,8 +61,18 @@ services:
     # Using version 3.5.0
     # NOTE: This is a newer version than Loki (2.9.2). While generally backward compatible,
     # if you experience issues, check the healthcheck logs for compatibility warnings
-    image: ${PROMTAIL_IMAGE}:${PROMTAIL_TAG}
+    image: ${LOCALOBS_PROMTAIL_IMAGE}:${LOCALOBS_PROMTAIL_TAG}
     container_name: promtail
+
+    # Environment variables for Promtail configuration
+    # These are used in promtail-config.yaml with -config.expand-env=true
+    environment:
+      # Timestamp parsing configuration
+      # Source field in JSON logs containing the timestamp
+      - LOCALOBS_TIMESTAMP_SOURCE=${LOCALOBS_TIMESTAMP_SOURCE}
+      # Go reference time format for parsing timestamps
+      # Format: 2006-01-02T15:04:05.999-0700 matches: 2026-01-07T22:16:19.999-0500
+      - LOCALOBS_TIMESTAMP_FORMAT=${LOCALOBS_TIMESTAMP_FORMAT}
 
     # Expose port 9080 for:
     # - Prometheus metrics about Promtail's operation (/metrics)
@@ -77,9 +87,9 @@ services:
       - ./config/promtail-config.yaml:/etc/promtail/config.yml
 
       # Mount log directory from host (read-only ":ro" for safety)
-      # Promtail watches logs from LOG_FOLDER (configurable in .env, defaults to ./logs)
+      # Promtail watches logs from LOCALOBS_LOG_FOLDER (configurable in .env, defaults to ./logs)
       # Maps to /var/log/spring-boot inside container (as configured in promtail-config.yaml)
-      - ${LOG_FOLDER:-./logs}:/var/log/spring-boot:ro
+      - ${LOCALOBS_LOG_FOLDER:-./logs}:/var/log/spring-boot:ro
 
       # Named volume for positions file - THIS IS CRITICAL!
       # Promtail tracks which lines it has already read in "positions.yaml"
@@ -90,8 +100,9 @@ services:
       # Location configured in promtail-config.yaml: positions.filename: /tmp/positions.yaml
       - promtail-positions:/tmp
 
-    # Tell Promtail to use our custom config file
-    command: -config.file=/etc/promtail/config.yml
+    # Tell Promtail to use our custom config file and enable environment variable expansion
+    # -config.expand-env=true allows using ${ENV_VAR} in the config file
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
 
     # Same network as Loki so it can send logs via http://loki:3100
     networks:
@@ -115,7 +126,7 @@ services:
   # and visualize log data. It connects to Loki as a data source.
   grafana:
     # Using version 10.2.2
-    image: ${GRAFANA_IMAGE}:${GRAFANA_TAG}
+    image: ${LOCALOBS_GRAFANA_IMAGE}:${LOCALOBS_GRAFANA_TAG}
     container_name: grafana
 
     # Expose port 3000 for web UI

@@ -52,6 +52,78 @@ jbang scripts/generate-logs.java batch --logs-path "./logs" 100
 
 ## Configuration
 
+### Environment Variables
+
+This project uses the `LOCALOBS_` prefix for all environment variables to prevent naming collisions when users export these variables alongside other projects. All variables are defined in [.env](.env).
+
+#### Component Versions
+
+```bash
+LOCALOBS_LOKI_IMAGE=grafana/loki
+LOCALOBS_LOKI_TAG=2.9.2
+LOCALOBS_PROMTAIL_IMAGE=grafana/promtail
+LOCALOBS_PROMTAIL_TAG=3.5.0
+LOCALOBS_GRAFANA_IMAGE=grafana/grafana
+LOCALOBS_GRAFANA_TAG=10.2.2
+```
+
+#### Log Directory
+
+```bash
+# Directory where application logs are stored
+LOCALOBS_LOG_FOLDER=./logs
+```
+
+#### Timestamp Parsing Configuration
+
+**New Feature:** Promtail now supports environment variable expansion via `-config.expand-env=true`, allowing dynamic timestamp parsing configuration:
+
+```bash
+# JSON field containing the timestamp (default: "ts")
+LOCALOBS_TIMESTAMP_SOURCE=ts
+
+# Go reference time format for parsing
+# Format: 2006-01-02T15:04:05.999-0700
+# Matches: 2026-01-07T22:16:19.999-0500
+LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05.999-0700
+```
+
+**Understanding Go's Reference Time Format:**
+
+Go uses a specific reference time: `Mon Jan 2 15:04:05 MST 2006`. To create a format:
+
+| Your Timestamp | Reference Time | Format String |
+|----------------|----------------|--------------|
+| 2026-01-07 | 2006-01-02 | `2006-01-02` |
+| 22:16:19 | 15:04:05 | `15:04:05` |
+| .999 | .000 | `.000` or `.999` |
+| -0500 | -0700 | `-0700` |
+| **Full:** 2026-01-07T22:16:19.999-0500 | **Full:** 2006-01-02T15:04:05.999-0700 | `2006-01-02T15:04:05.999-0700` |
+
+**Common Format Examples:**
+
+```bash
+# RFC3339: 2026-01-07T22:16:19Z
+LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05Z07:00
+
+# With milliseconds and timezone: 2026-01-07T22:16:19.999-0500
+LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05.999-0700
+
+# Date only: 2026-01-07
+LOCALOBS_TIMESTAMP_FORMAT=2006-01-02
+
+# Custom format: 07/Jan/2026:22:16:19
+LOCALOBS_TIMESTAMP_FORMAT=02/Jan/2006:15:04:05
+```
+
+**Benefits of This Approach:**
+
+✅ **No YAML editing required** - Change formats via environment variables  
+✅ **Consistent across environments** - Same config works everywhere  
+✅ **Version controlled** - Timestamp configs in `.env` file  
+✅ **Collision-free** - `LOCALOBS_` prefix prevents conflicts  
+✅ **Dynamic configuration** - Promtail expands variables at runtime
+
 ### Loki (`config/loki-config.yaml`)
 
 Key settings:
@@ -62,11 +134,15 @@ Key settings:
 
 ### Promtail (`config/promtail-config.yaml`)
 
+**Environment Variable Expansion Enabled:** Promtail runs with `-config.expand-env=true`, allowing the use of `${ENV_VAR}` syntax in configuration files.
+
 Pipeline stages:
 1. **JSON parsing** - Extracts fields from JSON logs
-2. **Timestamp extraction** - Uses log timestamp
+2. **Timestamp extraction** - Uses timestamp from `${LOCALOBS_TIMESTAMP_SOURCE}` field with format `${LOCALOBS_TIMESTAMP_FORMAT}`
 3. **Labels** - Indexes level and application fields
 4. **Message formatting** - Formats output for readability
+
+The timestamp parsing is now fully configurable via environment variables, making it easy to adapt to different log formats without modifying YAML files.
 
 ### Grafana (`config/grafana-datasource.yaml`)
 
