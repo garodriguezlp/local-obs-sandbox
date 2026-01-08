@@ -143,10 +143,6 @@ services:
       # Login with admin/admin, Grafana will prompt to change password
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      
-      # Disable forced password change on first login
-      - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=false
-      - GF_USERS_DEFAULT_THEME=dark
 
       # Disable user sign-up (only admin can access)
       # Set to true if you want others to create accounts
