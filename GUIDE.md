@@ -5,18 +5,21 @@ A practical guide to setting up and using Loki and Grafana for Spring Boot log m
 ## Components Overview
 
 ### Promtail - Log Shipper
+
 - Watches log files for changes
 - Parses JSON Lines format
 - Adds labels and metadata
 - Streams logs to Loki via HTTP
 
 ### Loki - Log Aggregation System
+
 - Stores compressed log data
 - Indexes only metadata (labels)
 - Provides LogQL query language
 - Optimized for aggregation and filtering
 
 ### Grafana - Visualization
+
 - Connects to Loki as a data source
 - Provides LogQL query builder
 - Creates dashboards and visualizations
@@ -54,7 +57,8 @@ jbang scripts/generate-logs.java batch --logs-path "./logs" 100
 
 ### Environment Variables
 
-This project uses the `LOCALOBS_` prefix for all environment variables to prevent naming collisions when users export these variables alongside other projects. All variables are defined in [.env](.env).
+This project uses the `LOCALOBS_` prefix for all environment variables to prevent naming collisions when users export
+these variables alongside other projects. All variables are defined in [.env](.env).
 
 #### Component Versions
 
@@ -76,7 +80,8 @@ LOCALOBS_LOG_FOLDER=./logs
 
 #### Timestamp Parsing Configuration
 
-**New Feature:** Promtail now supports environment variable expansion via `-config.expand-env=true`, allowing dynamic timestamp parsing configuration:
+**New Feature:** Promtail now supports environment variable expansion via `-config.expand-env=true`, allowing dynamic
+timestamp parsing configuration:
 
 ```bash
 # JSON field containing the timestamp (default: "ts")
@@ -86,18 +91,22 @@ LOCALOBS_TIMESTAMP_SOURCE=ts
 # Format: 2006-01-02T15:04:05.999-0700
 # Matches: 2026-01-07T22:16:19.999-0500
 LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05.999-0700
+
+# Timezone location (IANA Time Zone database format)
+# Examples: America/Bogota, America/New_York, Europe/London, UTC
+LOCALOBS_TIMESTAMP_LOCATION=America/Bogota
 ```
 
 **Understanding Go's Reference Time Format:**
 
 Go uses a specific reference time: `Mon Jan 2 15:04:05 MST 2006`. To create a format:
 
-| Your Timestamp | Reference Time | Format String |
-|----------------|----------------|--------------|
-| 2026-01-07 | 2006-01-02 | `2006-01-02` |
-| 22:16:19 | 15:04:05 | `15:04:05` |
-| .999 | .000 | `.000` or `.999` |
-| -0500 | -0700 | `-0700` |
+| Your Timestamp                         | Reference Time                         | Format String                  |
+|----------------------------------------|----------------------------------------|--------------------------------|
+| 2026-01-07                             | 2006-01-02                             | `2006-01-02`                   |
+| 22:16:19                               | 15:04:05                               | `15:04:05`                     |
+| .999                                   | .000                                   | `.000` or `.999`               |
+| -0500                                  | -0700                                  | `-0700`                        |
 | **Full:** 2026-01-07T22:16:19.999-0500 | **Full:** 2006-01-02T15:04:05.999-0700 | `2006-01-02T15:04:05.999-0700` |
 
 **Common Format Examples:**
@@ -105,15 +114,19 @@ Go uses a specific reference time: `Mon Jan 2 15:04:05 MST 2006`. To create a fo
 ```bash
 # RFC3339: 2026-01-07T22:16:19Z
 LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05Z07:00
+LOCALOBS_TIMESTAMP_LOCATION=UTC
 
 # With milliseconds and timezone: 2026-01-07T22:16:19.999-0500
 LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05.999-0700
+LOCALOBS_TIMESTAMP_LOCATION=America/Bogota
 
 # Date only: 2026-01-07
 LOCALOBS_TIMESTAMP_FORMAT=2006-01-02
+LOCALOBS_TIMESTAMP_LOCATION=America/New_York
 
 # Custom format: 07/Jan/2026:22:16:19
 LOCALOBS_TIMESTAMP_FORMAT=02/Jan/2006:15:04:05
+LOCALOBS_TIMESTAMP_LOCATION=Europe/London
 ```
 
 **Benefits of This Approach:**
@@ -122,11 +135,13 @@ LOCALOBS_TIMESTAMP_FORMAT=02/Jan/2006:15:04:05
 ✅ **Consistent across environments** - Same config works everywhere  
 ✅ **Version controlled** - Timestamp configs in `.env` file  
 ✅ **Collision-free** - `LOCALOBS_` prefix prevents conflicts  
-✅ **Dynamic configuration** - Promtail expands variables at runtime
+✅ **Dynamic configuration** - Promtail expands variables at runtime  
+✅ **Timezone aware** - Proper timezone handling with `LOCALOBS_TIMESTAMP_LOCATION`
 
 ### Loki (`config/loki-config.yaml`)
 
 Key settings:
+
 - Authentication: disabled (local dev)
 - Storage: filesystem
 - Retention: 168h (7 days)
@@ -134,15 +149,19 @@ Key settings:
 
 ### Promtail (`config/promtail-config.yaml`)
 
-**Environment Variable Expansion Enabled:** Promtail runs with `-config.expand-env=true`, allowing the use of `${ENV_VAR}` syntax in configuration files.
+**Environment Variable Expansion Enabled:** Promtail runs with `-config.expand-env=true`, allowing the use of
+`${ENV_VAR}` syntax in configuration files.
 
 Pipeline stages:
+
 1. **JSON parsing** - Extracts fields from JSON logs
-2. **Timestamp extraction** - Uses timestamp from `${LOCALOBS_TIMESTAMP_SOURCE}` field with format `${LOCALOBS_TIMESTAMP_FORMAT}`
+2. **Timestamp extraction** - Uses timestamp from `${LOCALOBS_TIMESTAMP_SOURCE}` field with format
+   `${LOCALOBS_TIMESTAMP_FORMAT}`
 3. **Labels** - Indexes level and application fields
 4. **Message formatting** - Formats output for readability
 
-The timestamp parsing is now fully configurable via environment variables, making it easy to adapt to different log formats without modifying YAML files.
+The timestamp parsing is now fully configurable via environment variables, making it easy to adapt to different log
+formats without modifying YAML files.
 
 ### Grafana (`config/grafana-datasource.yaml`)
 
@@ -213,22 +232,26 @@ rate({job="spring-boot"}[1m])
 ### Logs Not Appearing
 
 **1. Check Promtail is reading logs:**
+
 ```bash
 docker-compose logs promtail
 curl http://localhost:9080/targets
 ```
 
 **2. Check Loki is receiving logs:**
+
 ```bash
 curl -G http://localhost:3100/loki/api/v1/label/job/values
 ```
 
 **3. Check file permissions:**
+
 ```bash
 ls -la ./logs/
 ```
 
 **4. Verify log format is valid JSON Lines:**
+
 ```bash
 cat logs/application.log | head -1 | jq .
 ```
@@ -246,6 +269,7 @@ docker-compose exec grafana curl http://loki:3100/ready
 ### Performance Issues
 
 **Increase Loki limits:**
+
 ```yaml
 limits_config:
   ingestion_rate_mb: 50
@@ -253,6 +277,7 @@ limits_config:
 ```
 
 **Reduce Promtail batch size:**
+
 ```yaml
 clients:
   - url: http://loki:3100/loki/api/v1/push
@@ -265,22 +290,29 @@ clients:
 ### For Spring Boot Applications
 
 **1. Use Structured Logging (JSON Lines):**
+
 ```xml
 <!-- logback-spring.xml -->
 <appender name="JSON" class="ch.qos.logback.core.FileAppender">
-  <file>logs/application.log</file>
-  <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    <file>logs/application.log</file>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
 </appender>
 ```
 
 **2. Add Context:**
+
 ```java
-MDC.put("traceId", traceId);
-MDC.put("userId", userId);
-log.info("User action performed");
+MDC.put("traceId",traceId);
+MDC.
+
+put("userId",userId);
+log.
+
+info("User action performed");
 ```
 
 **3. Use Appropriate Log Levels:**
+
 - ERROR: System errors requiring attention
 - WARN: Potential issues
 - INFO: Important business events
@@ -289,16 +321,19 @@ log.info("User action performed");
 ### For Loki Configuration
 
 **1. Use Labels Wisely:**
+
 - Keep label cardinality low (< 10,000 unique combinations)
 - Use labels for dimensions you want to aggregate on
 - Put high-cardinality data in log lines, not labels
 
 **2. Retention:**
+
 - Set appropriate retention periods
 - Monitor disk usage
 - Consider using object storage for long-term retention
 
 **3. Performance:**
+
 - Tune `ingestion_rate_mb` based on log volume
 - Use caching for frequently accessed queries
 - Consider running Loki in microservices mode for scale

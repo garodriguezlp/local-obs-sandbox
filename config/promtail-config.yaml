@@ -92,10 +92,13 @@ scrape_configs:
       # === STAGE 2: TIMESTAMP EXTRACTION ===
       # Uses Go reference time format from LOCALOBS_TIMESTAMP_FORMAT env var
       # Reference time: Mon Jan 2 15:04:05 MST 2006
-      # Format 2006-01-02T15:04:05.999-0700 matches: 2026-01-07T22:16:19.999-0500
+      # Format: ${LOCALOBS_TIMESTAMP_FORMAT} (e.g., 2006-01-02T15:04:05.999-0700)
+      # Matches timestamps like: 2026-01-07T22:16:19.999-0500
+      # Location: ${LOCALOBS_TIMESTAMP_LOCATION} (e.g., America/Bogota)
       - timestamp:
           source: ts
           format: ${LOCALOBS_TIMESTAMP_FORMAT}
+          location: ${LOCALOBS_TIMESTAMP_LOCATION}
 
       # === STAGE 3: MINIMAL LABELS ===
       - labels:

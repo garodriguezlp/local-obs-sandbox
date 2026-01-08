@@ -73,6 +73,9 @@ services:
       # Go reference time format for parsing timestamps
       # Format: 2006-01-02T15:04:05.999-0700 matches: 2026-01-07T22:16:19.999-0500
       - LOCALOBS_TIMESTAMP_FORMAT=${LOCALOBS_TIMESTAMP_FORMAT}
+      # Timezone location (IANA Time Zone database format)
+      # Used for proper timezone handling in timestamp parsing
+      - LOCALOBS_TIMESTAMP_LOCATION=${LOCALOBS_TIMESTAMP_LOCATION}
 
     # Expose port 9080 for:
     # - Prometheus metrics about Promtail's operation (/metrics)

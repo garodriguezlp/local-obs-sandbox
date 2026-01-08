@@ -4,12 +4,14 @@ set -e
 echo "🔄 Resetting Spring Boot Log Stack..."
 echo ""
 
-# Load environment variables
+# Load environment variables from .env only if not already set
+# This prevents accidental overrides when env vars are already exported
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    # Only export specific needed variable if it's not already set
+    [ -z "${LOCALOBS_LOG_FOLDER}" ] && export LOCALOBS_LOG_FOLDER=$(grep '^LOCALOBS_LOG_FOLDER=' .env | cut -d '=' -f2-)
 fi
 
-# Use LOCALOBS_LOG_FOLDER from .env or default to ./logs
+# Use LOCALOBS_LOG_FOLDER from environment or default to ./logs
 LOCALOBS_LOG_FOLDER=${LOCALOBS_LOG_FOLDER:-./logs}
 
 # Stop containers

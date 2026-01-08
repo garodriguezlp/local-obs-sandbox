@@ -4,7 +4,8 @@ A complete, production-ready local log management solution for Spring Boot appli
 
 ## Overview
 
-This project provides a fully configured Docker Compose stack for collecting, storing, querying, and visualizing Spring Boot logs in JSON Lines format using:
+This project provides a fully configured Docker Compose stack for collecting, storing, querying, and visualizing Spring
+Boot logs in JSON Lines format using:
 
 - **Loki** (2.9.2) - Lightweight log aggregation system
 - **Promtail** (3.5.0) - Log collection agent
@@ -121,7 +122,8 @@ See [`GUIDE.md`](GUIDE.md) for detailed troubleshooting steps.
 
 ### Environment Variables
 
-All configuration variables are prefixed with `LOCALOBS_` to avoid collisions when exported alongside other environment variables:
+All configuration variables are prefixed with `LOCALOBS_` to avoid collisions when exported alongside other environment
+variables:
 
 ```bash
 # Component versions
@@ -139,16 +141,21 @@ LOCALOBS_LOG_FOLDER=./logs
 # Reference: Mon Jan 2 15:04:05 MST 2006
 LOCALOBS_TIMESTAMP_SOURCE=ts
 LOCALOBS_TIMESTAMP_FORMAT=2006-01-02T15:04:05.999-0700
+# Timezone location (IANA Time Zone database)
+LOCALOBS_TIMESTAMP_LOCATION=America/Bogota
 ```
 
 ### Timestamp Format Configuration
 
-Promtail now uses environment variables for timestamp parsing, configured with `-config.expand-env=true`. This allows you to:
+Promtail now uses environment variables for timestamp parsing, configured with `-config.expand-env=true`. This allows
+you to:
 
 - **Customize timestamp parsing** without editing YAML files
 - **Use Go's reference time format** (Jan 2, 2006 15:04:05) for precise timestamp parsing
 - **Control the JSON field** containing timestamps via `LOCALOBS_TIMESTAMP_SOURCE`
 - **Match any timestamp format** by adjusting `LOCALOBS_TIMESTAMP_FORMAT`
+- **Set timezone location** via `LOCALOBS_TIMESTAMP_LOCATION` using IANA Time Zone database format (e.g.,
+  America/Bogota, America/New_York, Europe/London)
 
 **Example:** For timestamp `2026-01-07T22:16:19.999-0500`, the format is `2006-01-02T15:04:05.999-0700`
 
