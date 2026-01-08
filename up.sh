@@ -4,19 +4,48 @@ set -e
 echo "🚀 Starting Spring Boot Log Stack..."
 echo ""
 
+# Load environment variables
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Use LOG_FOLDER from .env or default to ./logs
+LOG_FOLDER=${LOG_FOLDER:-./logs}
+
 # Create logs directory if it doesn't exist
-if [ ! -d "logs" ]; then
-    echo "📁 Creating logs directory..."
-    mkdir logs
+if [ ! -d "$LOG_FOLDER" ]; then
+    echo "📁 Creating logs directory at $LOG_FOLDER..."
+    mkdir -p "$LOG_FOLDER"
 fi
 
 # Start services
 echo "🐳 Starting Docker containers..."
 docker-compose up -d
 
-# Wait for services
-echo "⏳ Waiting for services to be ready..."
-sleep 15
+# Wait for services to be running
+echo "⏳ Waiting for services to be running..."
+MAX_ATTEMPTS=30
+ATTEMPT=0
+
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    LOKI_RUNNING=$(docker inspect --format='{{.State.Running}}' loki 2>/dev/null || echo "false")
+    PROMTAIL_RUNNING=$(docker inspect --format='{{.State.Running}}' promtail 2>/dev/null || echo "false")
+    GRAFANA_RUNNING=$(docker inspect --format='{{.State.Running}}' grafana 2>/dev/null || echo "false")
+    
+    if [ "$LOKI_RUNNING" = "true" ] && [ "$PROMTAIL_RUNNING" = "true" ] && [ "$GRAFANA_RUNNING" = "true" ]; then
+        echo "✅ All services are running"
+        break
+    fi
+    
+    ATTEMPT=$((ATTEMPT + 1))
+    if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+        echo "⚠️  Timeout waiting for services to start"
+        echo "   Loki: $LOKI_RUNNING, Promtail: $PROMTAIL_RUNNING, Grafana: $GRAFANA_RUNNING"
+        break
+    fi
+    
+    sleep 2
+done
 
 # Check Loki
 echo ""
@@ -33,18 +62,15 @@ else
     echo "❌ Grafana is not responding"
 fi
 
-# Generate or copy initial logs
-echo ""
-if [ -n "$1" ]; then
-    echo "📝 Copying custom log file from $1..."
-    cp "$1" logs/
-else
+# Generate sample logs if GENERATE_LOGS is enabled
+if [ "${GENERATE_LOGS}" = "true" ]; then
+    echo ""
     echo "📝 Generating sample logs..."
     python scripts/generate-logs.py batch 50
+    
+    # Wait for ingestion
+    sleep 2
 fi
-
-# Wait for ingestion
-sleep 2
 
 # Verify logs in Loki
 echo ""

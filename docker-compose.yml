@@ -77,9 +77,9 @@ services:
       - ./config/promtail-config-raw-json.yaml:/etc/promtail/config.yml
 
       # Mount log directory from host (read-only ":ro" for safety)
-      # Promtail watches ./logs/*.log files on your machine
+      # Promtail watches logs from LOG_FOLDER (configurable in .env, defaults to ./logs)
       # Maps to /var/log/spring-boot inside container (as configured in promtail-config-raw-json.yaml)
-      - ./logs:/var/log/spring-boot:ro
+      - ${LOG_FOLDER:-./logs}:/var/log/spring-boot:ro
 
       # Named volume for positions file - THIS IS CRITICAL!
       # Promtail tracks which lines it has already read in "positions.yaml"
@@ -107,17 +107,6 @@ services:
     # If promtail fails, it will stop rather than continuously restarting
     # Check logs with: docker logs promtail
     restart: on-failure:3
-
-    # Health check to verify Promtail is working correctly
-    # This helps detect incompatibility early
-    healthcheck:
-      # Check if Promtail is responding and can reach Loki
-      # /ready endpoint returns 200 when Promtail is ready
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9080/ready"]
-      interval: 15s      # Check every 15 seconds
-      timeout: 5s        # Fail if check takes longer than 5 seconds
-      retries: 5         # Mark unhealthy after 5 consecutive failures
-      start_period: 30s  # Grace period on startup (allow 30s for initialization)
 
   # ===========================================
   # GRAFANA - Visualization & Query Interface
