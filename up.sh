@@ -66,7 +66,7 @@ fi
 if [ "${GENERATE_LOGS}" = "true" ]; then
     echo ""
     echo "📝 Generating sample logs..."
-    python scripts/generate-logs.py batch 50
+    jbang scripts/generate-logs.java batch --logs-path "$LOG_FOLDER" 50
     
     # Wait for ingestion
     sleep 2
